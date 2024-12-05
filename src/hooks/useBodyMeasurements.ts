@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { BodyMeasurements, BodyShapeResult } from '../types';
 import { calculateBodyShape } from '../utils/bodyShapeCalculator';
 import { generateHealthRecommendations } from '../utils/healthRecommendations';
-import { fetchOutfitSuggestions } from '../services/pinterest';
+import { getFashionRecommendations } from '../services/recommendations';
 
 export function useBodyMeasurements() {
   const [result, setResult] = useState<BodyShapeResult | null>(null);
@@ -15,8 +15,8 @@ export function useBodyMeasurements() {
       // Calculate body shape
       const { shape, whr } = calculateBodyShape(measurements.waist, measurements.hip);
       
-      // Fetch outfit suggestions
-      const outfitSuggestions = await fetchOutfitSuggestions(shape);
+      // Get fashion recommendations
+      const fashionRecommendations = getFashionRecommendations(shape);
       
       // Generate health recommendations
       const healthRecommendations = generateHealthRecommendations(whr);
@@ -25,7 +25,7 @@ export function useBodyMeasurements() {
         shape,
         whr,
         recommendations: [
-          ...outfitSuggestions,
+          ...fashionRecommendations,
           ...healthRecommendations,
         ],
       });
