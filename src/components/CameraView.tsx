@@ -7,39 +7,66 @@ interface Props {
   onMeasurementsDetected: (measurements: { waist: number; hip: number }) => void;
 }
 
+const CAMERA_CONSTRAINTS = {
+  width: 640,
+  height: 480,
+  facingMode: "user",
+  deviceId: undefined
+};
+
 export function CameraView({ onMeasurementsDetected }: Props) {
   const webcamRef = useRef<Webcam>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { detectKeypoints, isProcessing } = useBodyKeypoints();
+  const [cameraActive, setCameraActive] = useState(false);
 
   useEffect(() => {
     requestCameraPermission();
+    return () => {
+      if (webcamRef.current?.stream) {
+        webcamRef.current.stream.getTracks().forEach(track => track.stop());
+      }
+    };
   }, []);
 
   const requestCameraPermission = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: CAMERA_CONSTRAINTS 
+      });
+      
+      // Test the stream and then stop it
+      const videoTrack = stream.getVideoTracks()[0];
+      const settings = videoTrack.getSettings();
+      
+      if (!settings.width || !settings.height) {
+        throw new Error('Camera not providing valid video dimensions');
+      }
+      
       stream.getTracks().forEach(track => track.stop());
       setHasPermission(true);
+      setCameraActive(true);
       setError(null);
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasPermission(false);
-      setError('Camera access denied. Please enable camera access to use this feature.');
+      setCameraActive(false);
+      setError('Camera access denied or not available. Please ensure camera permissions are granted.');
     }
   };
 
   const handleCapture = async () => {
     if (!webcamRef.current) return;
     setError(null);
+    
     try {
       const measurements = await detectKeypoints(webcamRef.current);
       if (measurements) {
         onMeasurementsDetected(measurements);
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An unexpected error occurred.');
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
     }
   };
 
@@ -62,12 +89,19 @@ export function CameraView({ onMeasurementsDetected }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="relative">
+      <div className={`relative ${!cameraActive ? 'hidden' : ''}`}>
         <Webcam
           ref={webcamRef}
           className="w-full rounded-lg"
           mirrored
           screenshotFormat="image/jpeg"
+          videoConstraints={CAMERA_CONSTRAINTS}
+          onUserMedia={() => setCameraActive(true)}
+          onUserMediaError={(err) => {
+            console.error('Webcam error:', err);
+            setCameraActive(false);
+            setError('Failed to start camera stream. Please check your camera permissions and try again.');
+          }}
         />
         <button
           onClick={handleCapture}
@@ -96,11 +130,13 @@ export function CameraView({ onMeasurementsDetected }: Props) {
       
       <div className="bg-blue-50 p-4 rounded-lg">
         <p className="text-blue-600 text-sm mb-2">For best results:</p>
-        <ul className="list-disc ml-5">
+        <ul className="list-disc ml-5 text-sm text-blue-800">
           <li>Stand 6-8 feet from the camera</li>
           <li>Ensure your full body is visible</li>
           <li>Stand in a well-lit area</li>
           <li>Wear fitted clothing</li>
+          <li>Face the camera directly</li>
+          <li>Keep your arms slightly away from your body</li>
         </ul>
       </div>
     </div>
