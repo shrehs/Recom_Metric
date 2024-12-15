@@ -7,6 +7,7 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   build: {
+    chunkSizeWarningLimit: 2000, // Adjust the limit as needed
     rollupOptions: {
       output: {
         manualChunks: {
@@ -15,7 +16,8 @@ export default defineConfig({
             '@tensorflow/tfjs-backend-webgl',
             '@tensorflow/tfjs-converter',
             '@tensorflow/tfjs-core'
-          ]
+          ],
+          vendor: ['react', 'react-dom'], // Example of splitting vendor code
         }
       }
     }
